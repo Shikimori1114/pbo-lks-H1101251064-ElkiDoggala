@@ -8,80 +8,67 @@ use PDO;
 
 class MySQLBookRepository implements BookRepositoryInterface
 {
-    private PDO $db;
+    public function __construct(private PDO $pdo) {}
 
-    public function __construct(PDO $db)
+    public function findAll(): array
     {
-        $this->db = $db;
-    }
-
-    public function getAll(): array
-    {
-        $stmt = $this->db->query("SELECT * FROM books ORDER BY id DESC");
-        $rows = $stmt->fetchAll();
-
-        $books = [];
-        foreach ($rows as $row) {
-            $books[] = new Book(
-                (int)$row['id'],
-                $row['judul'],
-                $row['penulis'],
-                (int)$row['tahun'],
-                (int)$row['stok']
-            );
-        }
-
-        return $books;
-    }
-
-    public function getById(int $id): ?Book
-    {
-        $stmt = $this->db->prepare("SELECT * FROM books WHERE id = :id");
-        $stmt->execute(['id' => $id]);
-        $row = $stmt->fetch();
-
-        if (!$row) {
-            return null;
-        }
-
-        return new Book(
-            (int)$row['id'],
-            $row['judul'],
-            $row['penulis'],
-            (int)$row['tahun'],
-            (int)$row['stok']
+        $stmt = $this->pdo->query("SELECT * FROM books ORDER BY id DESC");
+        return array_map(
+            fn(array $row) => $this->toModel($row),
+            $stmt->fetchAll()
         );
     }
 
-    public function create(array $data): Book
+    public function findById(int $id): ?Book
     {
-        $stmt = $this->db->prepare("INSERT INTO books (judul, penulis, tahun, stok) VALUES (:judul, :penulis, :tahun, :stok)");
-        $stmt->execute([
-            'judul' => $data['judul'],
-            'penulis' => $data['penulis'],
-            'tahun' => $data['tahun'],
-            'stok' => $data['stok'],
-        ]);
-
-        $id = (int)$this->db->lastInsertId();
-        return $this->getById($id);
+        $stmt = $this->pdo->prepare("SELECT * FROM books WHERE id = ?");
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row ? $this->toModel($row) : null;
     }
 
-    public function update(int $id, array $data): bool
+    public function save(Book $book): int
     {
-        $stmt = $this->db->prepare("UPDATE books SET judul = :judul, penulis = :penulis, tahun = :tahun, stok = :stok WHERE id = :id");
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO books (judul, penulis, tahun, stok) VALUES (?, ?, ?, ?)"
+        );
+        $stmt->execute([
+            $book->getJudul(),
+            $book->getPenulis(),
+            $book->getTahun(),
+            $book->getStok(),
+        ]);
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    public function update(Book $book): bool
+    {
+        $stmt = $this->pdo->prepare(
+            "UPDATE books SET judul = ?, penulis = ?, tahun = ?, stok = ? WHERE id = ?"
+        );
         return $stmt->execute([
-            'id' => $id,
-            'judul' => $data['judul'],
-            'penulis' => $data['penulis'],
-            'tahun' => $data['tahun'],
-            'stok' => $data['stok'],
+            $book->getJudul(),
+            $book->getPenulis(),
+            $book->getTahun(),
+            $book->getStok(),
+            $book->getId(),
         ]);
     }
 
     public function delete(int $id): bool
     {
-        $stmt = $this->db->prepare("DELETE FROM books WHERE id = :id");
-        return $stmt->execute(['id' => $id]);
+        $stmt = $this->pdo->prepare("DELETE FROM books WHERE id = ?");
+        return $stmt->execute([$id]);
+    }
+
+    private function toModel(array $row): Book
+    {
+        return new Book(
+            (int) $row['id'],
+            $row['judul'],
+            $row['penulis'],
+            (int) $row['tahun'],
+            (int) $row['stok']
+        );
     }
 }
