@@ -2,7 +2,7 @@
 
 **Nama**: Elki Doggala  
 **NIM**: H1101251064  
-**Mata Kuliah**: Pemrograman Berbasis Objek (PBO)
+**Mata Kuliah**: Pemrograman Berorientasi Objek (PBO)
 
 ---
 
